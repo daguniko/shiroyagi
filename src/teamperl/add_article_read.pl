@@ -1,7 +1,7 @@
 #!/usr/bin/env perl -w
 
 # USAGE
-# perl annotate.pl output submission_data_v2.csv
+# perl add_article_read.pl output submission_data_v2.csv
 
 use strict;
 use utf8;
