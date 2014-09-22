@@ -1,8 +1,8 @@
 #!/usr/bin/env perl -w
 
 # USAGE
-# perl format.pl training_data.csv
-# perl format.pl test_data.csv
+# perl make_liblinear_format.pl training_data.csv
+# perl make_liblinear_format.pl test_data.csv
 
 use strict;
 use utf8;
@@ -10,42 +10,39 @@ use utf8;
 &main();
 
 sub main {
-    my $feature_ids = &feature_ids();
-
+    my %feature_ids = ();
+    my $id = 0;
     open my $fh, $ARGV[0] or die $!;
     while (<$fh>) {
 	next if /^"user_id"/;
 	chomp;
 	my $features = &extract_feature($_);
+
+	# add new features to %feature_ids
+	foreach my $feature (keys %$features) {
+	    $feature_ids{$feature} = $id++ unless $feature_ids{$feature};
+	}
+    }
+    close $fh;
+
+    open $fh, $ARGV[0] or die $!;
+    while (<$fh>) {
+	next if /^"user_id"/;
+	chomp;
+	my $features = &extract_feature($_);
+
+	# print a liblinear example for a given line
 	if (/"article_show"/) {
 	    printf "-1 ";
 	} else {
 	    printf "+1 ";
 	}
-	my @array = ();
-	foreach my $key (sort {$feature_ids->{$a} <=> $feature_ids->{$b}} keys %$features) {
-	    push @array, sprintf("%d:%d", $feature_ids->{$key}, $features->{$key});
+	my @temp = ();
+	foreach my $feature (sort {$feature_ids{$a} <=> $feature_ids{$b}} keys %$features) {
+	    push @temp, sprintf("%d:%d", $feature_ids{$feature}, $features->{$feature});
 	}
-	printf "%s\n", join " ", @array;
+	printf "%s\n", join " ", @temp;
     }
-}
-
-sub feature_ids {
-    my %feature_ids = ();
-    my $feature_idx =  0;
-    open my $fh, $ARGV[0] or die $!;
-    while (<$fh>) {
-	next if /^"user_id"/;
-	chomp;
-	my $features = &extract_feature($_);
-	foreach my $feature (keys %$features) {
-	    unless ($feature_ids{$feature}) {
-		$feature_ids{$feature} = $feature_idx++;
-	    }
-	}
-    }
-    close $fh;
-    return \%feature_ids;
 }
 
 sub extract_feature {
@@ -54,13 +51,8 @@ sub extract_feature {
     my %features = ();
     my ($user_id, $on_cid, $p_topic_id, $type, $created_at, @words) = split /,/, $line;
 
-    # user feature
-    $features{"u$user_id"} = 1;
-
-    # article feature
-    $features{"o$on_cid"} = 1;
-
-    # topic feature
+    $features{"u$user_id"}    = 1;
+    $features{"o$on_cid"}     = 1;
     $features{"p$p_topic_id"} = 1;
 
     # time features
